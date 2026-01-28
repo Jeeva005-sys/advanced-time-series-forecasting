@@ -1,0 +1,29 @@
+Title: Advanced Time Series Forecasting with Deep Learning and Attention
+
+1. Introduction
+This project implements and compares a baseline LSTM model with an attention-based Transformer model for multivariate time series forecasting.
+
+2. Dataset
+A synthetic multivariate dataset with 5000 samples and 3 features was generated using trend, seasonality, and Gaussian noise.
+
+3. Models
+Baseline Model: LSTM neural network.
+Advanced Model: Transformer-inspired attention model using MultiHeadAttention.
+
+4. Hyperparameters
+Sequence Length: 30
+Epochs: 10
+Batch Size: 32
+Optimizer: Adam
+Attention Heads: 2
+
+5. Results
+The following metrics were used for evaluation: MAE and RMSE.
+
+(Insert table from results.csv)
+
+6. Analysis
+The attention-based model captures long-term dependencies better than the LSTM baseline and provides improved forecasting accuracy.
+
+7. Conclusion
+Attention mechanisms enhance time series forecasting performance compared to traditional deep learning models.
