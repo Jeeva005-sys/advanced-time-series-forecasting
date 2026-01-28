@@ -1,2 +1,15 @@
-# time-series-project
-This project demonstrates basic time series data analysis and forecasting using Python. It includes data loading, visualization, and simple predictive modeling for beginners.
+# Advanced Time Series Forecasting with Attention
+
+This project compares a baseline LSTM model and an attention-based encoder-decoder architecture for multivariate time series forecasting. It includes hyperparameter tuning, multi-split evaluation, and performance comparison using MAE, RMSE, and MAPE metrics.
+
+Technologies:
+- Python
+- TensorFlow/Keras
+- NumPy
+- Pandas
+- Matplotlib
+
+Files:
+- main.py: model implementation
+- report.txt: detailed analysis
+- results.csv: evaluation metrics
