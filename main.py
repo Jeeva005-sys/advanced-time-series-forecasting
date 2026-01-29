@@ -1,123 +1,178 @@
-# ================================
-# Advanced Time Series Forecasting
-# Beginner Friendly Version
-# ================================
+"""
+Advanced Time Series Forecasting with LSTM and Attention Model.
+
+This script generates synthetic multivariate time series data,
+trains a baseline LSTM model and an attention-based encoder-decoder model,
+performs hyperparameter tuning, and evaluates performance using MAE, RMSE, and MAPE.
+"""
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.layers import LSTM, Dense, Attention, Input
+from tensorflow.keras.optimizers import Adam
+
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.preprocessing import MinMaxScaler
 
-import tensorflow as tf
-from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import LSTM, Dense, Input, MultiHeadAttention, LayerNormalization, Flatten
 
-# ----------------
-# 1. Generate Data
-# ----------------
-np.random.seed(42)
+# ---------------------------
+# Utility Functions
+# ---------------------------
 
-n_samples = 5000
-time = np.arange(n_samples)
+def calculate_mape(y_true, y_pred):
+    """
+    Calculate Mean Absolute Percentage Error (MAPE).
+    """
+    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
-trend = time * 0.01
-seasonal = 10 * np.sin(2 * np.pi * time / 50)
-noise = np.random.normal(0, 2, n_samples)
 
-f1 = trend + seasonal + noise
-f2 = 5 * np.cos(2 * np.pi * time / 30) + noise
-f3 = np.random.normal(0, 5, n_samples)
-
-data = pd.DataFrame({
-    "feature1": f1,
-    "feature2": f2,
-    "feature3": f3
-})
-
-data.to_csv("dataset.csv", index=False)
-
-# Plot data
-data.plot(figsize=(10,5))
-plt.title("Generated Multivariate Time Series Data")
-plt.savefig("data_plot.png")
-plt.close()
-
-print("Dataset generated and saved.")
-
-# ----------------
-# 2. Preprocessing
-# ----------------
-scaler = MinMaxScaler()
-scaled_data = scaler.fit_transform(data)
-
-def create_sequences(data, seq_length=30):
-    X = []
-    y = []
+def create_sequences(data, seq_length):
+    """
+    Create input-output sequences for time series forecasting.
+    """
+    X, y = [], []
     for i in range(len(data) - seq_length):
         X.append(data[i:i+seq_length])
-        y.append(data[i+seq_length])
+        y.append(data[i+seq_length, 0])
     return np.array(X), np.array(y)
 
-X, y = create_sequences(scaled_data)
 
-split = int(0.8 * len(X))
-X_train, X_test = X[:split], X[split:]
-y_train, y_test = y[:split], y[split:]
+# ---------------------------
+# Model Builders
+# ---------------------------
 
-print("Data preprocessing completed.")
+def build_lstm_model(input_shape, units=64, lr=0.001):
+    """
+    Build baseline LSTM model.
+    """
+    model = Sequential()
+    model.add(LSTM(units, input_shape=input_shape))
+    model.add(Dense(1))
+    model.compile(optimizer=Adam(lr), loss='mse')
+    return model
 
-# ----------------
-# 3. LSTM Baseline
-# ----------------
-lstm_model = Sequential([
-    LSTM(64, input_shape=(30,3)),
-    Dense(3)
+
+def build_attention_model(input_shape, units=64, lr=0.001):
+    """
+    Builds an encoder-decoder LSTM model with attention mechanism.
+    """
+    inputs = Input(shape=input_shape)
+
+    encoder = LSTM(units, return_sequences=True)(inputs)
+    attention = Attention()([encoder, encoder])
+
+    decoder = LSTM(units)(attention)
+    outputs = Dense(1)(decoder)
+
+    model = Model(inputs, outputs)
+    model.compile(optimizer=Adam(lr), loss='mse')
+
+    return model
+
+
+# ---------------------------
+# Data Generation
+# ---------------------------
+
+np.random.seed(42)
+
+time_steps = 500
+t = np.arange(time_steps)
+
+signal1 = np.sin(0.02 * t)
+signal2 = np.cos(0.02 * t)
+noise = np.random.normal(0, 0.1, time_steps)
+
+data = np.vstack([signal1 + noise, signal2 + noise, signal1 + signal2]).T
+
+df = pd.DataFrame(data, columns=["feature1", "feature2", "target"])
+df.to_csv("dataset.csv", index=False)
+
+scaler = MinMaxScaler()
+scaled_data = scaler.fit_transform(df.values)
+
+
+# ---------------------------
+# Experiment Settings
+# ---------------------------
+
+sequence_lengths = [10, 20]
+lstm_units = [32, 64]
+learning_rates = [0.001, 0.0005]
+splits = [0.7, 0.8, 0.9]
+
+results = []
+
+
+# ---------------------------
+# Training Loop
+# ---------------------------
+
+for split in splits:
+    train_size = int(len(scaled_data) * split)
+    train_data = scaled_data[:train_size]
+    test_data = scaled_data[train_size:]
+
+    for seq in sequence_lengths:
+        X_train, y_train = create_sequences(train_data, seq)
+        X_test, y_test = create_sequences(test_data, seq)
+
+        for units in lstm_units:
+            for lr in learning_rates:
+
+                # Baseline LSTM
+                lstm_model = build_lstm_model((seq, 3), units, lr)
+                lstm_model.fit(X_train, y_train, epochs=10, verbose=0)
+
+                lstm_pred = lstm_model.predict(X_test)
+                lstm_mae = mean_absolute_error(y_test, lstm_pred)
+                lstm_rmse = np.sqrt(mean_squared_error(y_test, lstm_pred))
+                lstm_mape = calculate_mape(y_test, lstm_pred)
+
+                results.append(["LSTM", split, seq, units, lr,
+                                lstm_mae, lstm_rmse, lstm_mape])
+
+                # Attention Model
+                att_model = build_attention_model((seq, 3), units, lr)
+                att_model.fit(X_train, y_train, epochs=10, verbose=0)
+
+                att_pred = att_model.predict(X_test)
+                att_mae = mean_absolute_error(y_test, att_pred)
+                att_rmse = np.sqrt(mean_squared_error(y_test, att_pred))
+                att_mape = calculate_mape(y_test, att_pred)
+
+                results.append(["Attention", split, seq, units, lr,
+                                att_mae, att_rmse, att_mape])
+
+
+# ---------------------------
+# Save Results
+# ---------------------------
+
+df_results = pd.DataFrame(results, columns=[
+    "Model", "Train_Split", "Seq_Length", "Units", "Learning_Rate",
+    "MAE", "RMSE", "MAPE"
 ])
 
-lstm_model.compile(optimizer='adam', loss='mse')
-lstm_model.fit(X_train, y_train, epochs=10, batch_size=32)
+df_results.to_csv("results.csv", index=False)
+print("Results saved to results.csv")
 
-pred_lstm = lstm_model.predict(X_test)
 
-mae_lstm = mean_absolute_error(y_test, pred_lstm)
-rmse_lstm = np.sqrt(mean_squared_error(y_test, pred_lstm))
+# ---------------------------
+# Plot Sample Prediction
+# ---------------------------
 
-print("LSTM MAE:", mae_lstm)
-print("LSTM RMSE:", rmse_lstm)
+plt.figure(figsize=(10, 5))
+plt.plot(y_test[:100], label="True Values")
+plt.plot(att_pred[:100], label="Predictions")
+plt.title("Attention Model Forecast vs True Values")
+plt.legend()
+plt.savefig("data_plot.png")
+plt.show()
 
-# ----------------
-# 4. Attention Model
-# ----------------
-inputs = Input(shape=(30,3))
-attention = MultiHeadAttention(num_heads=2, key_dim=32)(inputs, inputs)
-attention = LayerNormalization()(attention)
-flat = Flatten()(attention)
-outputs = Dense(3)(flat)
-
-attention_model = Model(inputs, outputs)
-attention_model.compile(optimizer='adam', loss='mse')
-attention_model.fit(X_train, y_train, epochs=10, batch_size=32)
-
-pred_attention = attention_model.predict(X_test)
-
-mae_attention = mean_absolute_error(y_test, pred_attention)
-rmse_attention = np.sqrt(mean_squared_error(y_test, pred_attention))
-
-print("Attention MAE:", mae_attention)
-print("Attention RMSE:", rmse_attention)
-
-# ----------------
-# 5. Results Table
-# ----------------
-results = pd.DataFrame({
-    "Model": ["LSTM", "Attention"],
-    "MAE": [mae_lstm, mae_attention],
-    "RMSE": [rmse_lstm, rmse_attention]
-})
-
-results.to_csv("results.csv", index=False)
-
-print("\nFinal Results:")
-print(results)
+print("Plot saved as data_plot.png")
+print("Execution completed successfully.")
