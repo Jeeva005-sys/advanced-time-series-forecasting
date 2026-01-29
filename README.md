@@ -1,15 +1,24 @@
-# Advanced Time Series Forecasting with Attention
+# Advanced Time Series Forecasting Project
 
-This project compares a baseline LSTM model and an attention-based encoder-decoder architecture for multivariate time series forecasting. It includes hyperparameter tuning, multi-split evaluation, and performance comparison using MAE, RMSE, and MAPE metrics.
+This project implements an end-to-end advanced time series analysis and forecasting pipeline using Python. It includes data preprocessing, visualization, ARIMA-based modeling, evaluation metrics, and result persistence.
 
-Technologies:
+## Project Pipeline
+1. Data ingestion and cleaning
+2. Exploratory Data Analysis (EDA)
+3. Stationarity testing
+4. Model training (ARIMA/SARIMA)
+5. Forecasting
+6. Performance evaluation (RMSE, MSE)
+7. Result export
+
+## Technologies Used
 - Python
-- TensorFlow/Keras
-- NumPy
 - Pandas
+- NumPy
 - Matplotlib
+- Scikit-learn
+- Statsmodels
 
-Files:
-- main.py: model implementation
-- report.txt: detailed analysis
-- results.csv: evaluation metrics
+## Installation
+```bash
+pip install -r requirements.txt
